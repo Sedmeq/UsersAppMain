@@ -13,6 +13,6 @@ namespace UsersApp.ViewModels
 
         public decimal UnitPrice { get; set; }
         public decimal Subtotal { get; set; }
-        public string ProductName { get; set; }
+        public string? ProductName { get; set; }
     }
 }
