@@ -1,0 +1,290 @@
+﻿@model UsersApp.ViewModels.CreateOrderViewModel
+
+@{
+    ViewData["Title"] = "Create Order";
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">Create New Order</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create" id="orderForm">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="mb-4">
+                            <label asp-for="CustomerName" class="form-label"></label>
+                            <input asp-for="CustomerName" class="form-control" placeholder="Enter customer name" />
+                            <span asp-validation-for="CustomerName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5>Order Items</h5>
+                                <button type="button" class="btn btn-success btn-sm" id="addItemBtn">
+                                    <i class="fas fa-plus"></i> Add Item
+                                </button>
+                            </div>
+
+                            <div id="orderItemsContainer">
+                                @for (int i = 0; i < Math.Max(1, Model?.OrderItems?.Count ?? 0); i++)
+                                {
+                                    <div class="order-item-row card mb-3">
+                                        <div class="card-body">
+                                            <div class="row align-items-end">
+                                                <div class="col-md-4">
+                                                    <label class="form-label">Product</label>
+                                                    <select name="OrderItems[@i].ProductId" class="form-select product-select" data-index="@i">
+                                                        <option value="">-- Select Product --</option>
+                                                        @if (Model?.Products != null)
+                                                        {
+                                                            @foreach (var product in Model.Products)
+                                                            {
+                                                                var isSelected = i < (Model?.OrderItems?.Count ?? 0) &&
+                                                                Model.OrderItems[i] != null &&
+                                                                Model.OrderItems[i].ProductId.ToString() == product.Value;
+                                                                <option value="@product.Value" selected="@isSelected">
+                                                                    @product.Text
+                                                                </option>
+                                                            }
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">Quantity</label>
+                                                    <input name="OrderItems[@i].Quantity"
+                                                           class="form-control quantity-input"
+                                                           type="number"
+                                                           min="1"
+                                                           placeholder="Qty"
+                                                           data-index="@i"
+                                                           value="@(i < (Model?.OrderItems?.Count ?? 0) && Model.OrderItems[i] != null ? Model.OrderItems[i].Quantity : 1)" />
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">Unit Price</label>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text">$</span>
+                                                        <input name="OrderItems[@i].UnitPrice"
+                                                               class="form-control unit-price"
+                                                               readonly
+                                                               data-index="@i"
+                                                               value="@(i < (Model?.OrderItems?.Count ?? 0) && Model.OrderItems[i] != null ? Model.OrderItems[i].UnitPrice.ToString("F2") : "0.00")" />
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">Subtotal</label>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text">$</span>
+                                                        <input name="OrderItems[@i].Subtotal"
+                                                               class="form-control subtotal"
+                                                               readonly
+                                                               data-index="@i"
+                                                               value="@(i < (Model?.OrderItems?.Count ?? 0) && Model.OrderItems[i] != null ? Model.OrderItems[i].Subtotal.ToString("F2") : "0.00")" />
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-item"
+                                                            @(i == 0 ? "disabled" : "")>
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-8"></div>
+                                        <div class="col-md-4">
+                                            <h5>Total Amount: $<span id="totalAmount">0.00</span></h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Notes" class="form-label">Notes (Optional)</label>
+                            <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Enter any additional notes"></textarea>
+                            <span asp-validation-for="Notes" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a asp-action="Index" class="btn btn-secondary me-md-2">Cancel</a>
+                            <input type="submit" value="Create Order" class="btn btn-success" />
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        $(document).ready(function () {
+            let itemIndex = @Math.Max(1, Model?.OrderItems?.Count ?? 0);
+
+            // Add new item
+            $('#addItemBtn').click(function () {
+                addNewItem();
+            });
+
+            // Remove item
+            $(document).on('click', '.remove-item', function () {
+                if ($('.order-item-row').length > 1) {
+                    $(this).closest('.order-item-row').remove();
+                    calculateTotal();
+                    updateItemIndices();
+                }
+            });
+
+            // Calculate subtotal when product or quantity changes
+            $(document).on('change input', '.product-select, .quantity-input', function () {
+                calculateItemSubtotal($(this).data('index'));
+            });
+
+            function addNewItem() {
+                var newItem = `
+                    <div class="order-item-row card mb-3">
+                        <div class="card-body">
+                            <div class="row align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label">Product</label>
+                                    <select name="OrderItems[${itemIndex}].ProductId" class="form-select product-select" data-index="${itemIndex}">
+                                        <option value="">-- Select Product --</option>
+                                        @if (Model?.Products != null)
+                                        {
+                                                @foreach (var product in Model.Products)
+                                                {
+                                                        <option value="@product.Value">@product.Text</option>
+                                                }
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Quantity</label>
+                                    <input name="OrderItems[${itemIndex}].Quantity" class="form-control quantity-input" type="number" min="1" placeholder="Qty" data-index="${itemIndex}" value="1" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Unit Price</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input name="OrderItems[${itemIndex}].UnitPrice" class="form-control unit-price" readonly data-index="${itemIndex}" value="0.00" />
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Subtotal</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input name="OrderItems[${itemIndex}].Subtotal" class="form-control subtotal" readonly data-index="${itemIndex}" value="0.00" />
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-danger btn-sm remove-item">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+
+                $('#orderItemsContainer').append(newItem);
+                itemIndex++;
+                updateRemoveButtons();
+            }
+
+            function calculateItemSubtotal(index) {
+                var productSelect = $(`.product-select[data-index="${index}"]`);
+                var quantityInput = $(`.quantity-input[data-index="${index}"]`);
+                var unitPriceInput = $(`.unit-price[data-index="${index}"]`);
+                var subtotalInput = $(`.subtotal[data-index="${index}"]`);
+
+                var productId = productSelect.val();
+                var quantity = quantityInput.val() || 0;
+
+                if (productId && quantity > 0) {
+                    $.ajax({
+                        url: '@Url.Action("GetProductPrice", "Order")',
+                        type: 'GET',
+                        data: { productId: productId },
+                        success: function (data) {
+                            var unitPrice = data.price;
+                            var subtotal = unitPrice * quantity;
+
+                            unitPriceInput.val(unitPrice.toFixed(2));
+                            subtotalInput.val(subtotal.toFixed(2));
+                            calculateTotal();
+                        },
+                        error: function () {
+                            unitPriceInput.val('0.00');
+                            subtotalInput.val('0.00');
+                            calculateTotal();
+                        }
+                    });
+                } else {
+                    unitPriceInput.val('0.00');
+                    subtotalInput.val('0.00');
+                    calculateTotal();
+                }
+            }
+
+            function calculateTotal() {
+                var total = 0;
+                $('.subtotal').each(function () {
+                    var subtotal = parseFloat($(this).val()) || 0;
+                    total += subtotal;
+                });
+                $('#totalAmount').text(total.toFixed(2));
+            }
+
+            function updateItemIndices() {
+                $('.order-item-row').each(function (index) {
+                    $(this).find('select').attr('name', `OrderItems[${index}].ProductId`).attr('data-index', index);
+                    $(this).find('.quantity-input').attr('name', `OrderItems[${index}].Quantity`).attr('data-index', index);
+                    $(this).find('.unit-price').attr('name', `OrderItems[${index}].UnitPrice`).attr('data-index', index);
+                    $(this).find('.subtotal').attr('name', `OrderItems[${index}].Subtotal`).attr('data-index', index);
+                });
+            }
+
+            function updateRemoveButtons() {
+                $('.remove-item').prop('disabled', $('.order-item-row').length <= 1);
+            }
+
+            // Initialize calculations for existing items
+            $('.product-select').each(function () {
+                if ($(this).val()) {
+                    calculateItemSubtotal($(this).data('index'));
+                }
+            });
+
+            updateRemoveButtons();
+        });
+    </script>
+}
