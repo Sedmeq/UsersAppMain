@@ -47,7 +47,7 @@
                                         <div class="small">
                                             @foreach (var orderItem in item.OrderItems.Take(2))
                                             {
-                                                <div>@orderItem.ProductName (x@orderItem.Quantity)</div>
+                                                <div>@orderItem.ProductName (x @orderItem.Quantity)</div>
                                             }
                                             @if (item.OrderItems.Count > 2)
                                             {
