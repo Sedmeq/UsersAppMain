@@ -34,11 +34,13 @@
                         <!-- Model validation summary -->
                         <div asp-validation-summary="All" class="text-danger mb-3"></div>
 
-                        <!-- Customer Name -->
+                        <!-- Customer Selection -->
                         <div class="mb-4">
-                            <label asp-for="CustomerName" class="form-label"></label>
-                            <input asp-for="CustomerName" class="form-control" placeholder="Enter customer name" required />
-                            <span asp-validation-for="CustomerName" class="text-danger"></span>
+                            <label asp-for="CustomerId" class="form-label"></label>
+                            <select asp-for="CustomerId" asp-items="@Model.Customers" class="form-select" required>
+                                <option value="">-- Select Customer --</option>
+                            </select>
+                            <span asp-validation-for="CustomerId" class="text-danger"></span>
                         </div>
 
                         <!-- Order Items Section -->
@@ -210,7 +212,7 @@
         $(document).ready(function () {
             let itemIndex = $('.order-item-row').length;
 
-            // Form submit event - debug için
+            // Form submit event
             $('#orderForm').on('submit', function(e) {
                 console.log('Form is being submitted');
                 console.log('Form data:', $(this).serialize());
@@ -231,9 +233,9 @@
                     return false;
                 }
 
-                let customerName = $('#CustomerName').val().trim();
-                if (!customerName) {
-                    alert('Please enter customer name.');
+                let customerId = $('#CustomerId').val();
+                if (!customerId) {
+                    alert('Please select a customer.');
                     e.preventDefault();
                     return false;
                 }
@@ -273,10 +275,10 @@
                                         <option value="">-- Select Product --</option>
                                         @if (Model?.Products != null)
                                         {
-                                                @foreach (var product in Model.Products)
-                                                {
-                                                        <option value="@product.Value">@Html.Raw(product.Text)</option>
-                                                }
+                                                    @foreach (var product in Model.Products)
+                                                    {
+                                                                <option value="@product.Value">@Html.Raw(product.Text)</option>
+                                                    }
                                         }
                                     </select>
                                 </div>

@@ -1,4 +1,4 @@
-﻿// OrderController.cs - Debug versiyonu
+﻿// OrderController.cs - Monthly grouping ilə
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +6,8 @@ using UsersApp.Attributes;
 using UsersApp.Data;
 using UsersApp.Models;
 using UsersApp.ViewModels;
+using Microsoft.AspNetCore.Identity;
+using System.Globalization;
 
 namespace UsersApp.Controllers
 {
@@ -14,11 +16,13 @@ namespace UsersApp.Controllers
     {
         private readonly AppDbContext _context;
         private readonly ILogger<OrderController> _logger;
+        private readonly UserManager<Users> _userManager;
 
-        public OrderController(AppDbContext context, ILogger<OrderController> logger)
+        public OrderController(AppDbContext context, ILogger<OrderController> logger, UserManager<Users> userManager)
         {
             _context = context;
             _logger = logger;
+            _userManager = userManager;
         }
 
         public async Task<IActionResult> Index()
@@ -47,7 +51,24 @@ namespace UsersApp.Controllers
                 }).ToList()
             }).ToList();
 
-            return View(orderViewModels);
+            // Group by month and year
+            var monthlyGroups = orderViewModels
+                .GroupBy(o => new { o.OrderDate.Year, o.OrderDate.Month })
+                .Select(g => new MonthlyOrderGroupViewModel
+                {
+                    MonthNumber = g.Key.Month,
+                    Year = g.Key.Year,
+                    MonthYear = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+                    OrderCount = g.Count(),
+                    TotalRevenue = g.Sum(o => o.TotalAmount),
+                    TotalItems = g.Sum(o => o.TotalItems),
+                    Orders = g.OrderByDescending(o => o.OrderDate).ToList()
+                })
+                .OrderByDescending(g => g.Year)
+                .ThenByDescending(g => g.MonthNumber)
+                .ToList();
+
+            return View(monthlyGroups);
         }
 
         public async Task<IActionResult> Create()
@@ -69,6 +90,9 @@ namespace UsersApp.Controllers
                 }).ToList(),
                 OrderItems = new List<OrderItemViewModel> { new OrderItemViewModel() }
             };
+
+            // Get all users for customer selection
+            await PopulateCustomersList(model);
 
             return View(model);
         }
@@ -102,7 +126,7 @@ namespace UsersApp.Controllers
                     return RedirectToAction(nameof(Create));
                 }
 
-                // OrderItems null check ve temizleme
+                // OrderItems null check və temizleme
                 if (model.OrderItems == null)
                 {
                     model.OrderItems = new List<OrderItemViewModel>();
@@ -121,20 +145,34 @@ namespace UsersApp.Controllers
                     _logger.LogWarning("No valid order items found");
                 }
 
-                // CustomerName kontrolü
-                if (string.IsNullOrWhiteSpace(model.CustomerName))
+                // CustomerId kontrolü ve CustomerName'i alın
+                string customerName = "";
+                if (string.IsNullOrWhiteSpace(model.CustomerId))
                 {
-                    ModelState.AddModelError(nameof(model.CustomerName), "Customer Name is required.");
-                    _logger.LogWarning("Customer name is empty");
+                    ModelState.AddModelError(nameof(model.CustomerId), "Customer is required.");
+                    _logger.LogWarning("Customer is not selected");
+                }
+                else
+                {
+                    var selectedUser = await _userManager.FindByIdAsync(model.CustomerId);
+                    if (selectedUser != null)
+                    {
+                        customerName = selectedUser.FullName;
+                    }
+                    else
+                    {
+                        ModelState.AddModelError(nameof(model.CustomerId), "Selected customer not found.");
+                        _logger.LogWarning($"Customer not found with ID: {model.CustomerId}");
+                    }
                 }
 
-                if (ModelState.IsValid && validOrderItems.Count > 0)
+                if (ModelState.IsValid && validOrderItems.Count > 0 && !string.IsNullOrEmpty(customerName))
                 {
                     _logger.LogInformation("Creating new order");
 
                     var order = new Order
                     {
-                        CustomerName = model.CustomerName.Trim(),
+                        CustomerName = customerName,
                         Notes = model.Notes?.Trim(),
                         OrderDate = DateTime.Now,
                         OrderItems = new List<OrderItem>()
@@ -150,6 +188,7 @@ namespace UsersApp.Controllers
                             ModelState.AddModelError("", $"Product with ID {item.ProductId} not found.");
                             _logger.LogError($"Product not found: {item.ProductId}");
                             await PopulateProductsList(model);
+                            await PopulateCustomersList(model);
                             return View(model);
                         }
 
@@ -189,8 +228,9 @@ namespace UsersApp.Controllers
                 TempData["ErrorMessage"] = $"Error: {ex.Message}";
             }
 
-            // Hata durumunda products listesini yeniden doldur
+            // Hata durumunda products ve customers listesini yeniden doldur
             await PopulateProductsList(model);
+            await PopulateCustomersList(model);
 
             // Eğer OrderItems boşsa, en az bir tane ekle
             if (model.OrderItems == null || !model.OrderItems.Any())
@@ -227,6 +267,16 @@ namespace UsersApp.Controllers
             {
                 Value = p.Id.ToString(),
                 Text = $"{p.Name} - ${p.Price:F2}"
+            }).ToList();
+        }
+
+        private async Task PopulateCustomersList(CreateOrderViewModel model)
+        {
+            var users = await _userManager.Users.ToListAsync();
+            model.Customers = users.Select(u => new SelectListItem
+            {
+                Value = u.Id,
+                Text = $"{u.FullName} ({u.Email})"
             }).ToList();
         }
 

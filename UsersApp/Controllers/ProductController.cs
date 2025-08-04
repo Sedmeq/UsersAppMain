@@ -6,7 +6,7 @@ using UsersApp.Models;
 
 namespace UsersApp.Controllers
 {
-    [AllRoles]
+    [AccountantOrAdmin]
     public class ProductController : Controller
     {
         private readonly AppDbContext _context;
