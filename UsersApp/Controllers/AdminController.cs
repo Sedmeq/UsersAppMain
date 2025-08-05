@@ -39,6 +39,70 @@ namespace UsersApp.Controllers
             return View(userViewModels);
         }
 
+        // Create User GET
+        public async Task<IActionResult> CreateUser()
+        {
+            var allRoles = await roleManager.Roles.ToListAsync();
+            var model = new CreateUserViewModel
+            {
+                AvailableRoles = allRoles.Select(r => r.Name).ToList()
+            };
+
+            return View(model);
+        }
+
+        // Create User POST
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateUser(CreateUserViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                // Check if email already exists
+                var existingUser = await userManager.FindByEmailAsync(model.Email);
+                if (existingUser != null)
+                {
+                    ModelState.AddModelError("Email", "A user with this email already exists.");
+                    var allRoles = await roleManager.Roles.ToListAsync();
+                    model.AvailableRoles = allRoles.Select(r => r.Name).ToList();
+                    return View(model);
+                }
+
+                var user = new Users
+                {
+                    FullName = model.FullName,
+                    Email = model.Email,
+                    UserName = model.Email,
+                };
+
+                var result = await userManager.CreateAsync(user, model.Password);
+
+                if (result.Succeeded)
+                {
+                    // Assign role if selected
+                    if (!string.IsNullOrEmpty(model.SelectedRole))
+                    {
+                        await userManager.AddToRoleAsync(user, model.SelectedRole);
+                    }
+
+                    TempData["Success"] = $"User '{model.FullName}' created successfully!";
+                    return RedirectToAction("Index");
+                }
+                else
+                {
+                    foreach (var error in result.Errors)
+                    {
+                        ModelState.AddModelError("", error.Description);
+                    }
+                }
+            }
+
+            // If we got this far, something failed, redisplay form
+            var roles = await roleManager.Roles.ToListAsync();
+            model.AvailableRoles = roles.Select(r => r.Name).ToList();
+            return View(model);
+        }
+
         public async Task<IActionResult> EditUser(string id)
         {
             if (string.IsNullOrEmpty(id))
