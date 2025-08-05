@@ -1,4 +1,4 @@
-# UsersApp - Order Management System
+# OrderManagementSystem - Order Management System
 
 A comprehensive web application built with ASP.NET Core MVC for managing users, products, and orders with role-based access control.
 
@@ -48,7 +48,7 @@ A comprehensive web application built with ASP.NET Core MVC for managing users, 
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Sedmeq/OrderManagementSystem.git
    cd UsersApp
    ```
 
